@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
-import { getUserGuilds, getGuildIconUrl } from "@/lib/discord";
+import { getBotGuild, getGuildIconUrl } from "@/lib/discord";
 import { Sidebar } from "@/components/ui/Sidebar";
 
 export default async function GuildDashboardLayout({
@@ -13,34 +12,17 @@ export default async function GuildDashboardLayout({
   const resolvedParams = await params;
   const guildId = resolvedParams.guildId;
 
-  const session = await auth();
-  if (!session?.user || !session.accessToken) {
-    redirect("/api/auth/signin");
-  }
+  // Fetch guild directly via Bot Token
+  const botGuild = await getBotGuild(guildId);
 
-  // Security check: verify user has permissions to this guild
-  let userGuilds: any[] = [];
-  try {
-    userGuilds = await getUserGuilds(session.accessToken);
-  } catch {
-    redirect("/dashboard");
-  }
-
-  const currentGuild = userGuilds.find((g) => g.id === guildId);
-  if (!currentGuild) {
-    // Unauthorized or not an admin
-    redirect("/dashboard");
-  }
-
-  const iconUrl = currentGuild.icon
-    ? getGuildIconUrl(currentGuild.id, currentGuild.icon)
-    : undefined;
+  const guildName = botGuild?.name || "Terminal GSX";
+  const iconUrl = botGuild?.icon ? getGuildIconUrl(guildId, botGuild.icon) : undefined;
 
   return (
     <div className="flex flex-1 min-h-[calc(100vh-4rem)]">
       <Sidebar
         guildId={guildId}
-        guildName={currentGuild.name}
+        guildName={guildName}
         guildIconUrl={iconUrl}
       />
       <main className="flex-1 p-6 lg:p-10 max-w-7xl w-full mx-auto overflow-y-auto">

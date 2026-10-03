@@ -55,6 +55,28 @@ export async function getUserGuilds(accessToken: string): Promise<DiscordGuild[]
 }
 
 /**
+ * Fetch all guilds the bot is currently in using Bot Token
+ */
+export async function getBotAllGuilds(): Promise<DiscordGuild[]> {
+  const botToken = process.env.DISCORD_TOKEN;
+  if (!botToken) return [];
+
+  try {
+    const res = await fetch(`${DISCORD_API}/users/@me/guilds`, {
+      headers: {
+        Authorization: `Bot ${botToken}`,
+      },
+      next: { revalidate: 15 },
+    });
+
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Check if the bot is a member of a guild and fetch basic metadata
  */
 export async function getBotGuild(guildId: string): Promise<DiscordGuild | null> {

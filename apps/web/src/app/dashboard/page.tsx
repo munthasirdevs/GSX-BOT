@@ -1,76 +1,57 @@
 import Link from "next/link";
-import { auth } from "@/lib/auth";
-import { getUserGuilds, getBotGuild, getGuildIconUrl } from "@/lib/discord";
-import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
+import { getBotAllGuilds, getGuildIconUrl } from "@/lib/discord";
+import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { Bot, ArrowRight, PlusCircle, ShieldAlert } from "lucide-react";
+import { Bot, ArrowRight, PlusCircle, ShieldCheck } from "lucide-react";
 
 export default async function DashboardGuildSelectorPage() {
-  const session = await auth();
+  const guilds = await getBotAllGuilds();
 
-  let guilds: any[] = [];
-  let errorMsg = "";
-
-  if (session?.accessToken) {
-    try {
-      guilds = await getUserGuilds(session.accessToken);
-    } catch (err: any) {
-      errorMsg = err.message || "Failed to load Discord servers.";
-    }
-  }
-
-  // Check bot presence in parallel for each guild
-  const botPresenceMap: Record<string, boolean> = {};
-  if (guilds.length > 0) {
-    await Promise.all(
-      guilds.map(async (g) => {
-        const botGuild = await getBotGuild(g.id);
-        botPresenceMap[g.id] = botGuild !== null;
-      })
-    );
-  }
-
-  const clientId = process.env.DISCORD_CLIENT_ID || "";
+  const clientId = process.env.DISCORD_CLIENT_ID || "1555595154184732672";
   const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&permissions=8&scope=bot%20applications.commands`;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full space-y-8">
-      <div>
-        <h1 className="text-3xl font-extrabold text-white">Select a Server</h1>
-        <p className="text-gray-400 text-sm mt-1">
-          Servers where you hold Administrator or Manage Server permissions
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-6">
+        <div>
+          <h1 className="text-3xl font-extrabold text-white flex items-center gap-3">
+            <Bot className="w-8 h-8 text-[#5865F2]" />
+            Bot Control Hub
+          </h1>
+          <p className="text-gray-400 text-sm mt-1">
+            Select an active Discord server to manage messages, tickets, announcements, and monitoring
+          </p>
+        </div>
+
+        <a href={inviteUrl} target="_blank" rel="noreferrer">
+          <Button variant="outline" className="gap-2 text-indigo-400 hover:text-white">
+            <PlusCircle className="w-4 h-4" />
+            <span>Invite Bot to Another Server</span>
+          </Button>
+        </a>
       </div>
 
-      {errorMsg && (
-        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm flex items-center gap-3">
-          <ShieldAlert className="w-5 h-5 flex-shrink-0" />
-          <span>{errorMsg}</span>
-        </div>
-      )}
-
-      {guilds.length === 0 && !errorMsg ? (
+      {guilds.length === 0 ? (
         <Card className="text-center py-16">
           <Bot className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-          <h3 className="text-lg font-bold text-white mb-2">No Manageable Servers Found</h3>
+          <h3 className="text-lg font-bold text-white mb-2">Bot Is Not in Any Server Yet</h3>
           <p className="text-sm text-gray-400 max-w-md mx-auto mb-6">
-            You must have Administrator or Manage Server permissions in a Discord guild to access its dashboard.
+            Invite your bot to your Discord server to start controlling it from this dashboard.
           </p>
-          <a href="https://discord.com" target="_blank" rel="noreferrer">
-            <Button variant="primary">Create or Join a Discord Server</Button>
+          <a href={inviteUrl} target="_blank" rel="noreferrer">
+            <Button variant="primary">Invite Bot Now</Button>
           </a>
         </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {guilds.map((guild) => {
-            const hasBot = botPresenceMap[guild.id] ?? false;
             const iconUrl = getGuildIconUrl(guild.id, guild.icon);
 
             return (
               <Card
                 key={guild.id}
-                className="flex flex-col justify-between hover:border-white/20 transition-all group"
+                className="flex flex-col justify-between hover:border-[#5865F2]/50 transition-all group"
               >
                 <div>
                   <div className="flex items-center gap-4 mb-4">
@@ -87,37 +68,33 @@ export default async function DashboardGuildSelectorPage() {
                     )}
                     <div className="flex-1 min-w-0">
                       <h3 className="font-bold text-base text-white truncate">{guild.name}</h3>
-                      <div className="mt-1">
-                        {hasBot ? (
-                          <Badge variant="success">Bot Installed</Badge>
-                        ) : (
-                          <Badge variant="warning">Bot Not Present</Badge>
-                        )}
+                      <div className="mt-1 flex items-center gap-2">
+                        <Badge variant="success">Online & Ready</Badge>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-white/5">
-                  {hasBot ? (
-                    <Link href={`/dashboard/${guild.id}/analytics`}>
-                      <Button variant="primary" className="w-full gap-2">
-                        <span>Open Dashboard</span>
-                        <ArrowRight className="w-4 h-4" />
+                <div className="pt-4 border-t border-white/5 space-y-2">
+                  <Link href={`/dashboard/${guild.id}/broadcast`}>
+                    <Button variant="primary" className="w-full gap-2">
+                      <span>Open Control Panel</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </Button>
+                  </Link>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <Link href={`/dashboard/${guild.id}/tickets`}>
+                      <Button variant="ghost" size="sm" className="w-full text-gray-400 hover:text-white">
+                        Tickets
                       </Button>
                     </Link>
-                  ) : (
-                    <a
-                      href={`${inviteUrl}&guild_id=${guild.id}`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <Button variant="outline" className="w-full gap-2 text-indigo-400 hover:text-white">
-                        <PlusCircle className="w-4 h-4" />
-                        <span>Invite Bot to Server</span>
+                    <Link href={`/dashboard/${guild.id}/monitoring`}>
+                      <Button variant="ghost" size="sm" className="w-full text-gray-400 hover:text-white">
+                        Monitoring
                       </Button>
-                    </a>
-                  )}
+                    </Link>
+                  </div>
                 </div>
               </Card>
             );
