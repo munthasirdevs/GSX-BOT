@@ -29,6 +29,8 @@ pnpm-debug.log*
 packages/database/prisma/*.db
 packages/database/prisma/*.db-journal
 
-# OS files
+# OS & Local scripts
 .DS_Store
 Thumbs.db
+*.bat
+start.bat

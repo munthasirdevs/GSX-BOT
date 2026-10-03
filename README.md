@@ -123,8 +123,8 @@ discord-hub/
 
 ### 1. Prerequisites
 - **Node.js**: v20+ LTS
-- **PostgreSQL**: v14+ (Local or cloud provider like Supabase/Neon)
-- **Redis**: v6+ (Local or Upstash)
+- **MySQL**: v5.7+ / 8.0+ (Included with your local **XAMPP**)
+- **Redis**: v6+ (Local Windows service, Docker, or Upstash)
 - **Discord Bot Application**: From [Discord Developer Portal](https://discord.com/developers/applications)
   - Required Privileged Gateway Intents: **Server Members Intent**, **Message Content Intent**.
   - OAuth2 Redirect URI: `http://localhost:3000/api/auth/callback/discord`
@@ -148,8 +148,8 @@ NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="super-secret-random-32-chars-key"
 AUTH_SECRET="super-secret-random-32-chars-key"
 
-# Database & Cache
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/discord_bot_db?schema=public"
+# Database & Cache (MySQL via XAMPP)
+DATABASE_URL="mysql://root:@localhost:3306/discord_bot_db"
 REDIS_URL="redis://localhost:6379"
 
 # Webhooks / Public URLs

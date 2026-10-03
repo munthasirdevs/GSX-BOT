@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@discord-hub/database";
+import { getGuildChannels } from "@/lib/discord";
 import { TicketList } from "@/components/TicketList";
+import { TicketPanelDeployModal } from "@/components/TicketPanelDeployModal";
 import { Button } from "@/components/ui/Button";
 import { Settings } from "lucide-react";
 
@@ -12,7 +14,7 @@ export default async function TicketsPage({
   const resolvedParams = await params;
   const guildId = resolvedParams.guildId;
 
-  const [tickets, config] = await Promise.all([
+  const [tickets, config, channels] = await Promise.all([
     prisma.ticket.findMany({
       where: { guildId },
       orderBy: { createdAt: "desc" },
@@ -20,7 +22,10 @@ export default async function TicketsPage({
     prisma.guildConfig.findUnique({
       where: { id: guildId },
     }),
+    getGuildChannels(guildId),
   ]);
+
+  const textChannels = channels.filter((c) => c.type === 0 || c.type === 5);
 
   return (
     <div className="space-y-6">
@@ -32,12 +37,16 @@ export default async function TicketsPage({
           </p>
         </div>
 
-        <Link href={`/dashboard/${guildId}/settings`}>
-          <Button variant="outline" className="gap-2">
-            <Settings className="w-4 h-4 text-gray-400" />
-            <span>Ticket Settings</span>
-          </Button>
-        </Link>
+        <div className="flex items-center gap-3">
+          <TicketPanelDeployModal guildId={guildId} channels={textChannels} />
+
+          <Link href={`/dashboard/${guildId}/settings`}>
+            <Button variant="outline" className="gap-2">
+              <Settings className="w-4 h-4 text-gray-400" />
+              <span>Settings</span>
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {!config?.ticketCategoryId && (

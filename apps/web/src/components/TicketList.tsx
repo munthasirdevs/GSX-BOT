@@ -143,28 +143,46 @@ export const TicketList: React.FC<TicketListProps> = ({ tickets, guildId }) => {
                       {formatDate(t.createdAt)}
                     </td>
                     <td className="px-4 py-3.5 text-right">
-                      {t.status === "CLOSED" ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setSelectedTicket(t)}
-                          className="gap-1.5"
-                        >
-                          <FileText className="w-3.5 h-3.5 text-[#5865F2]" />
-                          <span>Transcript</span>
-                        </Button>
-                      ) : (
-                        <a
-                          href={`https://discord.com/channels/${guildId}/${t.channelId}`}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          <Button variant="ghost" size="sm" className="gap-1 text-[#5865F2] hover:text-[#7289da]">
-                            <span>Jump</span>
-                            <ExternalLink className="w-3.5 h-3.5" />
+                      <div className="flex items-center justify-end gap-2">
+                        {t.status === "CLOSED" ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedTicket(t)}
+                            className="gap-1.5"
+                          >
+                            <FileText className="w-3.5 h-3.5 text-[#5865F2]" />
+                            <span>Transcript</span>
                           </Button>
-                        </a>
-                      )}
+                        ) : (
+                          <>
+                            <a
+                              href={`https://discord.com/channels/${guildId}/${t.channelId}`}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              <Button variant="ghost" size="sm" className="gap-1 text-[#5865F2] hover:text-[#7289da]">
+                                <span>Jump</span>
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </Button>
+                            </a>
+
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={async () => {
+                                if (confirm(`Are you sure you want to close Ticket #${t.ticketNumber}? This will close the channel in Discord.`)) {
+                                  const { closeTicketFromDashboardAction } = await import("@/app/actions/ticketActions");
+                                  await closeTicketFromDashboardAction(guildId, t.id);
+                                }
+                              }}
+                              className="text-xs"
+                            >
+                              Close
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

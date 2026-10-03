@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Ticket, CalendarClock, Settings, ArrowLeft } from "lucide-react";
+import { BarChart3, Ticket, CalendarClock, Settings, ArrowLeft, Send, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
@@ -26,6 +26,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: BarChart3,
     },
     {
+      label: "Send Message",
+      href: `/dashboard/${guildId}/broadcast`,
+      icon: Send,
+    },
+    {
       label: "Tickets",
       href: `/dashboard/${guildId}/tickets`,
       icon: Ticket,
@@ -34,6 +39,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: "Schedules",
       href: `/dashboard/${guildId}/schedules`,
       icon: CalendarClock,
+    },
+    {
+      label: "Monitoring",
+      href: `/dashboard/${guildId}/monitoring`,
+      icon: Activity,
     },
     {
       label: "Settings",
