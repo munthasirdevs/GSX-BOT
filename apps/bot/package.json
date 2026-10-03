@@ -1,0 +1,29 @@
+{
+  "name": "@discord-hub/bot",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "deploy:commands": "tsx src/deploy-commands.ts"
+  },
+  "dependencies": {
+    "@discord-hub/database": "*",
+    "bullmq": "^5.21.2",
+    "cron-parser": "^4.9.0",
+    "discord-html-transcripts": "^3.2.0",
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.5",
+    "ioredis": "^5.4.1",
+    "pino": "^9.5.0",
+    "pino-pretty": "^13.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.6",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}

@@ -1,0 +1,76 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model GuildConfig {
+  id                  String   @id // Discord Guild ID
+  reportChannelId     String?  // Where 24h reports are dispatched
+  ticketCategoryId    String?  // Category under which ticket channels open
+  ticketTranscriptId  String?  // Channel where closed ticket transcripts post
+  supportRoleId       String?  // Role granted access to tickets
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  dailyAnalytics      DailyAnalytics[]
+  tickets             Ticket[]
+  scheduledMessages   ScheduledMessage[]
+}
+
+model DailyAnalytics {
+  id               String      @id @default(cuid())
+  guildId          String
+  date             DateTime    @default(now())
+  totalMessages    Int         @default(0)
+  humanMessages    Int         @default(0)
+  botMessages      Int         @default(0)
+  topUsersJson     Json        // Array of { userId: string, tag: string, isBot: boolean, count: number }
+  channelStatsJson Json        // Map of channelId -> count
+
+  guild            GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  @@index([guildId, date])
+}
+
+enum TicketStatus {
+  OPEN
+  CLOSED
+}
+
+model Ticket {
+  id             String       @id @default(cuid())
+  ticketNumber   Int          @unique @default(autoincrement())
+  guildId        String
+  channelId      String       @unique
+  creatorId      String
+  creatorTag     String
+  status         TicketStatus @default(OPEN)
+  reason         String?      @db.Text
+  transcriptUrl  String?      @db.Text
+  closedAt       DateTime?
+  closedById     String?
+  createdAt      DateTime     @default(now())
+
+  guild          GuildConfig  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  @@index([guildId, status])
+}
+
+model ScheduledMessage {
+  id             String      @id @default(cuid())
+  guildId        String
+  channelId      String
+  title          String?
+  content        String      @db.Text
+  cronExpression String?     // e.g., "0 12 * * *" or null for one-time
+  executeAt      DateTime    // Next execution timestamp
+  isRecurring    Boolean     @default(false)
+  isActive       Boolean     @default(true)
+  createdById    String
+  createdAt      DateTime    @default(now())
+
+  guild          GuildConfig @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  @@index([guildId, isActive, executeAt])
+}

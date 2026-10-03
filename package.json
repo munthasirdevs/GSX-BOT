@@ -1,0 +1,31 @@
+{
+  "name": "discord-hub",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Full-Stack Discord Bot with 24-Hour Analytics, Support Tickets, Scheduled Announcements, and Web UI Dashboard",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:bot": "npm --workspace=@discord-hub/bot run dev",
+    "dev:web": "npm --workspace=@discord-hub/web run dev",
+    "dev": "npm run dev:bot",
+    "build": "npm run build --workspaces",
+    "db:generate": "prisma generate --schema=packages/database/prisma/schema.prisma",
+    "db:push": "prisma db push --schema=packages/database/prisma/schema.prisma",
+    "db:studio": "prisma studio --schema=packages/database/prisma/schema.prisma",
+    "deploy:commands": "npm --workspace=@discord-hub/bot run deploy:commands"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "nextjs",
+    "analytics",
+    "tickets",
+    "bullmq",
+    "prisma"
+  ],
+  "author": "",
+  "license": "MIT"
+}
