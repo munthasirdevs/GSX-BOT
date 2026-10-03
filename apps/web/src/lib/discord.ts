@@ -39,19 +39,21 @@ export function hasAdminOrManagePermission(guild: DiscordGuild): boolean {
  * Fetch guilds that the authenticated user belongs to
  */
 export async function getUserGuilds(accessToken: string): Promise<DiscordGuild[]> {
-  const res = await fetch(`${DISCORD_API}/users/@me/guilds`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-    next: { revalidate: 60 },
-  });
+  try {
+    const res = await fetch(`${DISCORD_API}/users/@me/guilds`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      cache: "no-store",
+    });
 
-  if (!res.ok) {
-    throw new Error(`Failed to fetch user guilds: ${res.statusText}`);
+    if (!res.ok) return [];
+
+    const guilds: DiscordGuild[] = await res.json();
+    return guilds.filter(hasAdminOrManagePermission);
+  } catch {
+    return [];
   }
-
-  const guilds: DiscordGuild[] = await res.json();
-  return guilds.filter(hasAdminOrManagePermission);
 }
 
 /**
@@ -66,7 +68,7 @@ export async function getBotAllGuilds(): Promise<DiscordGuild[]> {
       headers: {
         Authorization: `Bot ${botToken}`,
       },
-      next: { revalidate: 15 },
+      cache: "no-store",
     });
 
     if (!res.ok) return [];
@@ -88,7 +90,7 @@ export async function getBotGuild(guildId: string): Promise<DiscordGuild | null>
       headers: {
         Authorization: `Bot ${botToken}`,
       },
-      next: { revalidate: 30 },
+      cache: "no-store",
     });
 
     if (!res.ok) return null;
@@ -110,7 +112,7 @@ export async function getGuildChannels(guildId: string): Promise<DiscordChannel[
       headers: {
         Authorization: `Bot ${botToken}`,
       },
-      next: { revalidate: 30 },
+      cache: "no-store",
     });
 
     if (!res.ok) return [];
@@ -132,7 +134,7 @@ export async function getGuildRoles(guildId: string): Promise<DiscordRole[]> {
       headers: {
         Authorization: `Bot ${botToken}`,
       },
-      next: { revalidate: 30 },
+      cache: "no-store",
     });
 
     if (!res.ok) return [];

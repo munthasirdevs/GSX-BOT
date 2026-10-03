@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { getBotAllGuilds } from "@/lib/discord";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   const guilds = await getBotAllGuilds();
 
