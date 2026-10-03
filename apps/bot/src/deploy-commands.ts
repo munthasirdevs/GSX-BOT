@@ -10,6 +10,7 @@ import * as setupCmd from "./commands/admin/setup";
 import * as reportCmd from "./commands/admin/report";
 import * as ticketCmd from "./commands/tickets/ticket";
 import * as scheduleCmd from "./commands/schedule/schedule";
+import * as bufferCmd from "./commands/schedule/buffer";
 import { logger } from "./utils/logger";
 
 const commands = [
@@ -17,6 +18,7 @@ const commands = [
   reportCmd.data.toJSON(),
   ticketCmd.data.toJSON(),
   scheduleCmd.data.toJSON(),
+  bufferCmd.data.toJSON(),
 ];
 
 const token = process.env.DISCORD_TOKEN;

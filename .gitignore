@@ -10,6 +10,10 @@ apps/web/.next/
 apps/web/out/
 build
 dist
+AGENTS.md
+CLAUDE.md
+apps/web/AGENTS.md
+apps/web/CLAUDE.md
 
 # Production
 .env

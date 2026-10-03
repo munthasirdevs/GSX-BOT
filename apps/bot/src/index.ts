@@ -15,6 +15,7 @@ import * as setupCmd from "./commands/admin/setup";
 import * as reportCmd from "./commands/admin/report";
 import * as ticketCmd from "./commands/tickets/ticket";
 import * as scheduleCmd from "./commands/schedule/schedule";
+import * as bufferCmd from "./commands/schedule/buffer";
 
 // Extend Client type to attach commands collection
 export interface ExtendedClient extends Client {
@@ -34,7 +35,7 @@ const client = new Client({
 client.commands = new Collection();
 
 // Register Slash Commands
-const commandList = [setupCmd, reportCmd, ticketCmd, scheduleCmd];
+const commandList = [setupCmd, reportCmd, ticketCmd, scheduleCmd, bufferCmd];
 for (const cmd of commandList) {
   client.commands.set(cmd.data.name, cmd);
 }

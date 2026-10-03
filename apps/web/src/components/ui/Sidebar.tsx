@@ -36,7 +36,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Ticket,
     },
     {
-      label: "Schedules",
+      label: "Buffer & Schedules",
       href: `/dashboard/${guildId}/schedules`,
       icon: CalendarClock,
     },
