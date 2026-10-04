@@ -1,12 +1,21 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Button } from "./ui/Button";
 import { Card, CardHeader, CardTitle, CardDescription } from "./ui/Card";
 import { DiscordEmbedPreview } from "./DiscordEmbedPreview";
 import { DiscordChannel } from "@/lib/discord";
 import { sendBroadcastAction } from "@/app/actions/broadcastActions";
-import { Send, CheckCircle2, AlertCircle, Sparkles, Hash, Megaphone } from "lucide-react";
+import {
+  Send,
+  CheckCircle2,
+  AlertCircle,
+  Sparkles,
+  Paperclip,
+  X,
+  FileText,
+  Image as ImageIcon,
+} from "lucide-react";
 
 interface BroadcastFormProps {
   guildId: string;
@@ -29,12 +38,51 @@ export const BroadcastForm: React.FC<BroadcastFormProps> = ({ guildId, channels 
   const [selectedColor, setSelectedColor] = useState("#5865F2");
   const [isEmbed, setIsEmbed] = useState(true);
   const [mentionEveryone, setMentionEveryone] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const selectedChannel = channels.find((c) => c.id === channelId);
   const channelName = selectedChannel?.name || "general";
+
+  function handleFileSelect(file: File | null) {
+    if (!file) {
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      return;
+    }
+
+    // Check size (25MB limit)
+    if (file.size > 25 * 1024 * 1024) {
+      setErrorMsg("File exceeds the maximum 25MB Discord limit.");
+      return;
+    }
+
+    setSelectedFile(file);
+    setErrorMsg("");
+
+    if (file.type.startsWith("image/")) {
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    } else {
+      setPreviewUrl(null);
+    }
+  }
+
+  function handleRemoveFile() {
+    setSelectedFile(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -50,12 +98,16 @@ export const BroadcastForm: React.FC<BroadcastFormProps> = ({ guildId, channels 
     formData.append("isEmbed", isEmbed ? "true" : "false");
     formData.append("mentionEveryone", mentionEveryone ? "true" : "false");
 
+    if (selectedFile) {
+      formData.append("file", selectedFile);
+    }
+
     try {
       await sendBroadcastAction(guildId, formData);
-      setSuccessMsg(`Message successfully dispatched to #${channelName}!`);
-      // Keep form or clear
+      setSuccessMsg(`Message and attachment successfully dispatched to #${channelName}!`);
       setContent("");
       setTitle("");
+      handleRemoveFile();
       setTimeout(() => setSuccessMsg(""), 6000);
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to send message to Discord.");
@@ -72,10 +124,10 @@ export const BroadcastForm: React.FC<BroadcastFormProps> = ({ guildId, channels 
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Send className="w-5 h-5 text-[#5865F2]" />
-              Message Composer
+              Message Composer & Media Dispatcher
             </CardTitle>
             <CardDescription>
-              Broadcast an immediate announcement or formatted message to any text channel.
+              Broadcast an immediate announcement, custom embed, or upload attachments directly to Discord.
             </CardDescription>
           </CardHeader>
 
@@ -214,7 +266,7 @@ export const BroadcastForm: React.FC<BroadcastFormProps> = ({ guildId, channels 
               </div>
 
               <textarea
-                rows={6}
+                rows={5}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 required
@@ -223,8 +275,82 @@ export const BroadcastForm: React.FC<BroadcastFormProps> = ({ guildId, channels 
               />
             </div>
 
+            {/* File Upload Section */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">
+                Attachment / Image Upload (Optional)
+              </label>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                onChange={(e) => handleFileSelect(e.target.files?.[0] || null)}
+                className="hidden"
+                accept="image/*,.pdf,.txt,.zip,.doc,.docx"
+              />
+
+              {!selectedFile ? (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (e.dataTransfer.files?.[0]) {
+                      handleFileSelect(e.dataTransfer.files[0]);
+                    }
+                  }}
+                  className="border-2 border-dashed border-white/15 hover:border-[#5865F2]/60 rounded-xl p-5 text-center cursor-pointer transition-colors bg-white/[0.02] hover:bg-white/[0.05]"
+                >
+                  <Paperclip className="w-6 h-6 text-gray-400 mx-auto mb-2" />
+                  <p className="text-xs font-semibold text-white">Click or drag a file to attach</p>
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    Supports Images (PNG, JPG, GIF, WebP), PDFs, Documents up to 25MB
+                  </p>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {previewUrl ? (
+                      <img
+                        src={previewUrl}
+                        alt="Preview"
+                        className="w-12 h-12 rounded-lg object-cover border border-white/10 flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg bg-[#5865F2]/20 text-[#5865F2] flex items-center justify-center flex-shrink-0">
+                        <FileText className="w-6 h-6" />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-white truncate">{selectedFile.name}</p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">
+                        {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
+                      </p>
+                    </div>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRemoveFile}
+                    className="text-gray-400 hover:text-rose-400 p-1.5"
+                    title="Remove Attachment"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+
             <div className="pt-3 border-t border-white/10 flex justify-end">
-              <Button variant="primary" type="submit" size="lg" isLoading={isLoading} className="gap-2 shadow-lg shadow-[#5865F2]/25">
+              <Button
+                variant="primary"
+                type="submit"
+                size="lg"
+                isLoading={isLoading}
+                className="gap-2 shadow-lg shadow-[#5865F2]/25"
+              >
                 <Send className="w-4 h-4" />
                 <span>Send to #{channelName}</span>
               </Button>
@@ -249,6 +375,8 @@ export const BroadcastForm: React.FC<BroadcastFormProps> = ({ guildId, channels 
             content={content}
             color={selectedColor}
             channelName={channelName}
+            imagePreviewUrl={previewUrl}
+            fileName={selectedFile?.name}
           />
         </div>
       </div>

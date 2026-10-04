@@ -28,6 +28,9 @@ export async function sendBroadcastAction(guildId: string, formData: FormData) {
     throw new Error("Target channel and message content are required.");
   }
 
+  const file = formData.get("file") as File | null;
+  const hasFile = file && file.size > 0;
+
   // Convert hex color to integer
   const colorInt = parseInt(colorHex.replace("#", ""), 16) || 0x5865f2;
 
@@ -47,6 +50,12 @@ export async function sendBroadcastAction(guildId: string, formData: FormData) {
       embed.title = title;
     }
 
+    if (hasFile && file.type.startsWith("image/")) {
+      embed.image = {
+        url: `attachment://${file.name}`,
+      };
+    }
+
     body = {
       content: mentionEveryone ? "@everyone" : undefined,
       embeds: [embed],
@@ -57,14 +66,30 @@ export async function sendBroadcastAction(guildId: string, formData: FormData) {
     };
   }
 
-  const response = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bot ${botToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+  let response: Response;
+
+  if (hasFile) {
+    const discordForm = new FormData();
+    discordForm.append("files[0]", file, file.name);
+    discordForm.append("payload_json", JSON.stringify(body));
+
+    response = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bot ${botToken}`,
+      },
+      body: discordForm,
+    });
+  } else {
+    response = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bot ${botToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  }
 
   if (!response.ok) {
     const errData = await response.json().catch(() => ({}));
