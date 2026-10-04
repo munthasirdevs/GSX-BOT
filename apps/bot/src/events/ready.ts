@@ -25,6 +25,9 @@ export async function execute(client: Client) {
 
     // 3. Hydrate any pending database scheduled messages into BullMQ
     await SchedulerManager.hydratePendingSchedules();
+
+    // 4. Start the resilient 15s database polling dispatcher for buffer & schedules
+    SchedulerManager.startBufferDispatcher(client);
   } catch (error) {
     logger.error({ error }, "Error during bot post-ready initialization");
   }

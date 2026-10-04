@@ -13,6 +13,9 @@ model GuildConfig {
   ticketCategoryId    String?  // Category under which ticket channels open
   ticketTranscriptId  String?  // Channel where closed ticket transcripts post
   supportRoleId       String?  // Role granted access to tickets
+  bufferChannelId     String?  // Default channel for buffer messages
+  bufferInterval      Int      @default(15) // Minutes spacing between buffer messages
+  bufferPaused        Boolean  @default(false) // Whether buffer processing is paused
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 

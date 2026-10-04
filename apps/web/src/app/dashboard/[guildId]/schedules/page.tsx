@@ -4,24 +4,18 @@ import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/Ca
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ScheduleModal } from "@/components/ScheduleModal";
+import { BufferQuickComposer } from "@/components/BufferQuickComposer";
+import { BufferSettingsBar } from "@/components/BufferSettingsBar";
+import { BufferQueueActions } from "@/components/BufferQueueActions";
 import { formatDate } from "@/lib/utils";
 import {
-  deleteScheduleAction,
-  toggleScheduleAction,
-  sendScheduleNowAction,
-  flushNextBufferAction,
-  clearBufferAction,
-} from "@/app/actions/scheduleActions";
-import {
   CalendarClock,
-  Trash2,
-  Power,
   Zap,
-  Send,
-  Clock,
   Repeat,
-  CheckCircle,
-  AlertCircle,
+  Clock,
+  Send,
+  Layers,
+  Sparkles,
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -34,18 +28,24 @@ export default async function SchedulesPage({
   const resolvedParams = await params;
   const guildId = resolvedParams.guildId;
 
-  const [schedules, channels] = await Promise.all([
+  const [schedules, channels, guildConfig] = await Promise.all([
     prisma.scheduledMessage.findMany({
       where: { guildId },
       orderBy: { executeAt: "asc" },
     }),
     getGuildChannels(guildId),
+    prisma.guildConfig.upsert({
+      where: { id: guildId },
+      update: {},
+      create: { id: guildId },
+    }),
   ]);
 
   const textChannels = channels.filter((c) => c.type === 0 || c.type === 5);
   const channelMap = new Map(channels.map((c) => [c.id, c.name]));
 
-  const bufferedCount = schedules.filter((s) => s.isActive && !s.isRecurring).length;
+  const activeBufferedItems = schedules.filter((s) => s.isActive && !s.isRecurring);
+  const bufferedCount = activeBufferedItems.length;
   const recurringCount = schedules.filter((s) => s.isActive && s.isRecurring).length;
   const nextUp = schedules.find((s) => s.isActive);
 
@@ -55,32 +55,37 @@ export default async function SchedulesPage({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-6">
         <div>
           <h1 className="text-3xl font-extrabold text-white flex items-center gap-3">
-            <Zap className="w-8 h-8 text-[#5865F2]" />
+            <Zap className="w-8 h-8 text-amber-400" />
             Message Buffer & Scheduler
           </h1>
           <p className="text-sm text-gray-400 mt-1">
-            Drip-queue buffered announcements, schedule time-delayed messages, and run recurring cron broadcasts
+            Automated drip queue, outbox buffer pipeline, and recurring announcement dispatcher
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          {bufferedCount > 0 && (
-            <form
-              action={async () => {
-                "use server";
-                await flushNextBufferAction(guildId);
-              }}
-            >
-              <Button variant="secondary" size="sm" type="submit" className="gap-2 text-emerald-400 hover:text-white">
-                <Send className="w-4 h-4" />
-                <span>Flush Next Now</span>
-              </Button>
-            </form>
-          )}
-
           <ScheduleModal guildId={guildId} channels={textChannels} />
         </div>
       </div>
+
+      {/* Buffer Settings & Controls Bar */}
+      <BufferSettingsBar
+        guildId={guildId}
+        channels={textChannels}
+        currentChannelId={guildConfig.bufferChannelId}
+        currentInterval={guildConfig.bufferInterval}
+        isPaused={guildConfig.bufferPaused}
+        bufferedCount={bufferedCount}
+      />
+
+      {/* Buffer Quick 1-Click Composer */}
+      <BufferQuickComposer
+        guildId={guildId}
+        channels={textChannels}
+        defaultChannelId={guildConfig.bufferChannelId}
+        bufferInterval={guildConfig.bufferInterval}
+        isPaused={guildConfig.bufferPaused}
+      />
 
       {/* Buffer Metric Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -89,9 +94,11 @@ export default async function SchedulesPage({
             <Zap className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs uppercase font-semibold text-gray-400">Buffered In Queue</p>
+            <p className="text-xs uppercase font-semibold text-gray-400">Buffered In Outbox</p>
             <p className="text-2xl font-extrabold text-white mt-0.5">{bufferedCount}</p>
-            <p className="text-[11px] text-gray-500 mt-0.5">Dripping sequentially</p>
+            <p className="text-[11px] text-gray-500 mt-0.5">
+              {guildConfig.bufferPaused ? "Delivery paused" : `Dripping every ${guildConfig.bufferInterval}m`}
+            </p>
           </div>
         </Card>
 
@@ -116,7 +123,7 @@ export default async function SchedulesPage({
               {nextUp ? formatDate(nextUp.executeAt) : "None Pending"}
             </p>
             <p className="text-[11px] text-gray-500 mt-0.5 truncate">
-              {nextUp ? `#${channelMap.get(nextUp.channelId) || "channel"}` : "Queue is empty"}
+              {nextUp ? `#${channelMap.get(nextUp.channelId) || "channel"}` : "Outbox is clear"}
             </p>
           </div>
         </Card>
@@ -126,24 +133,14 @@ export default async function SchedulesPage({
       <Card className="border-white/10">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Buffer Queue & Schedule Manifest</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Layers className="w-5 h-5 text-[#5865F2]" />
+              Buffer Queue & Schedule Manifest
+            </CardTitle>
             <CardDescription>
-              All pending, scheduled, and recurring messages registered for this server
+              Sequence order, delivery ETA, and priority management for outbox and recurring schedules
             </CardDescription>
           </div>
-
-          {bufferedCount > 1 && (
-            <form
-              action={async () => {
-                "use server";
-                await clearBufferAction(guildId);
-              }}
-            >
-              <Button variant="ghost" size="sm" type="submit" className="text-rose-400 hover:text-rose-300 text-xs">
-                Clear All Buffered
-              </Button>
-            </form>
-          )}
         </CardHeader>
 
         <div className="overflow-x-auto">
@@ -152,29 +149,44 @@ export default async function SchedulesPage({
               <CalendarClock className="w-12 h-12 text-gray-600 mx-auto mb-3" />
               <p className="font-semibold text-gray-400">No buffered or scheduled messages.</p>
               <p className="text-xs text-gray-500 mt-1">
-                Click "Buffer / Schedule Message" to queue an announcement.
+                Type in the Quick Buffer Composer above or click "Buffer / Schedule Message" to queue an announcement.
               </p>
             </div>
           ) : (
             <table className="w-full text-left text-sm text-gray-300">
               <thead className="text-xs uppercase bg-white/5 text-gray-400 border-b border-white/10">
                 <tr>
-                  <th scope="col" className="px-4 py-3">Channel</th>
+                  <th scope="col" className="px-4 py-3">Order / Channel</th>
                   <th scope="col" className="px-4 py-3">Content / Title</th>
                   <th scope="col" className="px-4 py-3">Delivery Type</th>
-                  <th scope="col" className="px-4 py-3">Next Execution</th>
+                  <th scope="col" className="px-4 py-3">ETA Execution</th>
                   <th scope="col" className="px-4 py-3">Status</th>
                   <th scope="col" className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {schedules.map((s, idx) => {
+                {schedules.map((s) => {
                   const channelName = channelMap.get(s.channelId) || s.channelId;
+                  const isBuffer = s.isActive && !s.isRecurring;
+                  const bufferIndex = isBuffer
+                    ? activeBufferedItems.findIndex((b) => b.id === s.id)
+                    : -1;
+
+                  const canMoveUp = isBuffer && bufferIndex > 0;
+                  const canMoveDown =
+                    isBuffer && bufferIndex < activeBufferedItems.length - 1;
 
                   return (
                     <tr key={s.id} className="hover:bg-white/5 transition-colors">
-                      <td className="px-4 py-3.5 font-semibold text-white whitespace-nowrap">
-                        #{channelName}
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          {isBuffer && (
+                            <span className="font-mono text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 font-bold border border-amber-500/20">
+                              #{bufferIndex + 1}
+                            </span>
+                          )}
+                          <span className="font-semibold text-white">#{channelName}</span>
+                        </div>
                       </td>
 
                       <td className="px-4 py-3.5 max-w-xs">
@@ -189,9 +201,12 @@ export default async function SchedulesPage({
                             <span>Cron: {s.cronExpression}</span>
                           </Badge>
                         ) : (
-                          <Badge variant="warning" className="gap-1 text-[11px] bg-amber-500/15 text-amber-400 border-amber-500/20">
+                          <Badge
+                            variant="warning"
+                            className="gap-1 text-[11px] bg-amber-500/15 text-amber-400 border-amber-500/20"
+                          >
                             <Zap className="w-3 h-3" />
-                            <span>Buffer #{idx + 1}</span>
+                            <span>Buffer Drip</span>
                           </Badge>
                         )}
                       </td>
@@ -202,68 +217,27 @@ export default async function SchedulesPage({
 
                       <td className="px-4 py-3.5 whitespace-nowrap">
                         {s.isActive ? (
-                          <Badge variant="success">Active</Badge>
+                          guildConfig.bufferPaused && isBuffer ? (
+                            <Badge variant="warning" className="bg-amber-500/15 text-amber-400 border-amber-500/20">
+                              Paused (Hold)
+                            </Badge>
+                          ) : (
+                            <Badge variant="success">Active</Badge>
+                          )
                         ) : (
-                          <Badge variant="neutral">Sent / Inactive</Badge>
+                          <Badge variant="neutral">Sent / Completed</Badge>
                         )}
                       </td>
 
                       <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {/* Send Now (Instant Dispatch) */}
-                          <form
-                            action={async () => {
-                              "use server";
-                              await sendScheduleNowAction(guildId, s.id);
-                            }}
-                          >
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              type="submit"
-                              className="text-emerald-400 hover:text-emerald-300 p-1.5"
-                              title="Send to Discord Right Now"
-                            >
-                              <Send className="w-4 h-4" />
-                            </Button>
-                          </form>
-
-                          {/* Pause / Resume */}
-                          <form
-                            action={async () => {
-                              "use server";
-                              await toggleScheduleAction(guildId, s.id, s.isActive);
-                            }}
-                          >
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              type="submit"
-                              className={s.isActive ? "text-amber-400 hover:text-amber-300 p-1.5" : "text-emerald-400 hover:text-emerald-300 p-1.5"}
-                              title={s.isActive ? "Pause" : "Activate"}
-                            >
-                              <Power className="w-4 h-4" />
-                            </Button>
-                          </form>
-
-                          {/* Delete */}
-                          <form
-                            action={async () => {
-                              "use server";
-                              await deleteScheduleAction(guildId, s.id);
-                            }}
-                          >
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              type="submit"
-                              className="text-rose-400 hover:text-rose-300 p-1.5"
-                              title="Delete from Queue"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </form>
-                        </div>
+                        <BufferQueueActions
+                          guildId={guildId}
+                          scheduleId={s.id}
+                          isActive={s.isActive}
+                          isBuffer={isBuffer}
+                          canMoveUp={canMoveUp}
+                          canMoveDown={canMoveDown}
+                        />
                       </td>
                     </tr>
                   );

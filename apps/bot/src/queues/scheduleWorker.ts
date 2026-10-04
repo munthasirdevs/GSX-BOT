@@ -47,10 +47,18 @@ export function initScheduleWorker(client: Client): Worker {
       // 1. Resolve schedule from PostgreSQL
       const record = await prisma.scheduledMessage.findUnique({
         where: { id: scheduleId },
+        include: { guild: true },
       });
 
       if (!record || !record.isActive) {
         logger.info({ scheduleId }, "Scheduled message is missing or inactive. Skipping.");
+        return;
+      }
+
+      // If buffer message and guild buffer is paused, skip
+      const isBuffer = !record.isRecurring && !record.cronExpression;
+      if (isBuffer && record.guild?.bufferPaused) {
+        logger.info({ scheduleId, guildId: record.guildId }, "Buffer is paused for guild; skipping delivery until unpaused.");
         return;
       }
 

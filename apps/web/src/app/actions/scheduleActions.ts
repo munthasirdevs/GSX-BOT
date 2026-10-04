@@ -248,3 +248,169 @@ export async function toggleScheduleAction(
   revalidatePath(`/dashboard/${guildId}/schedules`);
   return { success: true, isActive: newStatus };
 }
+
+/**
+ * Toggle whether the server's buffer drip is paused or running
+ */
+export async function toggleBufferPauseAction(guildId: string) {
+  const config = await prisma.guildConfig.upsert({
+    where: { id: guildId },
+    update: {},
+    create: { id: guildId },
+  });
+
+  const updated = await prisma.guildConfig.update({
+    where: { id: guildId },
+    data: { bufferPaused: !config.bufferPaused },
+  });
+
+  revalidatePath(`/dashboard/${guildId}/schedules`);
+  return { success: true, bufferPaused: updated.bufferPaused };
+}
+
+/**
+ * Update default channel and drip interval spacing for server buffer
+ */
+export async function updateBufferSettingsAction(guildId: string, formData: FormData) {
+  const bufferChannelId = (formData.get("bufferChannelId") as string) || null;
+  const bufferInterval = parseInt((formData.get("bufferInterval") as string) || "15", 10);
+
+  await prisma.guildConfig.upsert({
+    where: { id: guildId },
+    update: {
+      bufferChannelId,
+      bufferInterval: isNaN(bufferInterval) ? 15 : bufferInterval,
+    },
+    create: {
+      id: guildId,
+      bufferChannelId,
+      bufferInterval: isNaN(bufferInterval) ? 15 : bufferInterval,
+    },
+  });
+
+  revalidatePath(`/dashboard/${guildId}/schedules`);
+  return { success: true };
+}
+
+/**
+ * Quick 1-click add to buffer from the composer bar
+ */
+export async function quickAddBufferAction(guildId: string, formData: FormData) {
+  const session = await auth();
+  const userId = session?.user?.id || "dashboard-admin";
+
+  const content = formData.get("content") as string;
+  let channelId = (formData.get("channelId") as string) || "";
+  const title = (formData.get("title") as string) || null;
+
+  if (!content || !content.trim()) {
+    throw new Error("Message content cannot be empty.");
+  }
+
+  const config = await prisma.guildConfig.upsert({
+    where: { id: guildId },
+    update: {},
+    create: { id: guildId },
+  });
+
+  if (!channelId) {
+    channelId = config.bufferChannelId || "";
+  }
+
+  if (!channelId) {
+    throw new Error("Please select a target channel or configure a default buffer channel.");
+  }
+
+  const dripMinutes = config.bufferInterval || 15;
+
+  // Find latest active buffer message to queue after
+  const latest = await prisma.scheduledMessage.findFirst({
+    where: {
+      guildId,
+      isActive: true,
+      isRecurring: false,
+    },
+    orderBy: { executeAt: "desc" },
+  });
+
+  const now = Date.now();
+  let executeAt: Date;
+  if (latest && latest.executeAt.getTime() > now) {
+    executeAt = new Date(latest.executeAt.getTime() + dripMinutes * 60 * 1000);
+  } else {
+    executeAt = new Date(now + dripMinutes * 60 * 1000);
+  }
+
+  const record = await prisma.scheduledMessage.create({
+    data: {
+      guildId,
+      channelId,
+      title,
+      content,
+      executeAt,
+      isRecurring: false,
+      isActive: true,
+      createdById: userId,
+    },
+  });
+
+  if (scheduleQueue) {
+    try {
+      const delay = Math.max(0, executeAt.getTime() - Date.now());
+      await scheduleQueue.add(
+        "send_scheduled_msg",
+        { scheduleId: record.id },
+        {
+          delay,
+          jobId: `schedule_${record.id}_${executeAt.getTime()}`,
+          removeOnComplete: true,
+        }
+      );
+    } catch {}
+  }
+
+  revalidatePath(`/dashboard/${guildId}/schedules`);
+  return { success: true, scheduleId: record.id };
+}
+
+/**
+ * Reorder a buffer message up or down in the drip queue
+ */
+export async function reorderBufferItemAction(
+  guildId: string,
+  scheduleId: string,
+  direction: "up" | "down"
+) {
+  const items = await prisma.scheduledMessage.findMany({
+    where: {
+      guildId,
+      isActive: true,
+      isRecurring: false,
+    },
+    orderBy: { executeAt: "asc" },
+  });
+
+  const currentIndex = items.findIndex((i) => i.id === scheduleId);
+  if (currentIndex === -1) return { success: false };
+
+  const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+  if (targetIndex < 0 || targetIndex >= items.length) return { success: false };
+
+  const currentItem = items[currentIndex];
+  const targetItem = items[targetIndex];
+
+  // Swap their executeAt times
+  await prisma.$transaction([
+    prisma.scheduledMessage.update({
+      where: { id: currentItem.id },
+      data: { executeAt: targetItem.executeAt },
+    }),
+    prisma.scheduledMessage.update({
+      where: { id: targetItem.id },
+      data: { executeAt: currentItem.executeAt },
+    }),
+  ]);
+
+  revalidatePath(`/dashboard/${guildId}/schedules`);
+  return { success: true };
+}
