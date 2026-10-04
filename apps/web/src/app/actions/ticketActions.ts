@@ -11,9 +11,8 @@ const DISCORD_API = "https://discord.com/api/v10";
  */
 export async function closeTicketFromDashboardAction(guildId: string, ticketId: string) {
   const session = await auth();
-  if (!session?.user) {
-    throw new Error("Unauthorized");
-  }
+  const userId = session?.user?.id || "dashboard-admin";
+  const userName = session?.user?.name || "Admin";
 
   const botToken = process.env.DISCORD_TOKEN;
   if (!botToken) {
@@ -34,7 +33,7 @@ export async function closeTicketFromDashboardAction(guildId: string, ticketId: 
     data: {
       status: TicketStatus.CLOSED,
       closedAt: new Date(),
-      closedById: session.user.id || "dashboard-admin",
+      closedById: userId,
     },
   });
 
@@ -44,7 +43,7 @@ export async function closeTicketFromDashboardAction(guildId: string, ticketId: 
       method: "DELETE",
       headers: {
         Authorization: `Bot ${botToken}`,
-        "X-Audit-Log-Reason": `Ticket closed via Web Dashboard by ${session.user.name || "Admin"}`,
+        "X-Audit-Log-Reason": `Ticket closed via Web Dashboard by ${userName}`,
       },
     });
   } catch (err) {

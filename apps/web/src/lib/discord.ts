@@ -49,8 +49,8 @@ export async function getUserGuilds(accessToken: string): Promise<DiscordGuild[]
 
     if (!res.ok) return [];
 
-    const guilds: DiscordGuild[] = await res.json();
-    return guilds.filter(hasAdminOrManagePermission);
+    const guilds = await res.json();
+    return Array.isArray(guilds) ? guilds.filter(hasAdminOrManagePermission) : [];
   } catch {
     return [];
   }
@@ -72,7 +72,8 @@ export async function getBotAllGuilds(): Promise<DiscordGuild[]> {
     });
 
     if (!res.ok) return [];
-    return await res.json();
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
   } catch {
     return [];
   }
@@ -116,7 +117,8 @@ export async function getGuildChannels(guildId: string): Promise<DiscordChannel[
     });
 
     if (!res.ok) return [];
-    return await res.json();
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
   } catch {
     return [];
   }
@@ -138,7 +140,8 @@ export async function getGuildRoles(guildId: string): Promise<DiscordRole[]> {
     });
 
     if (!res.ok) return [];
-    return await res.json();
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
   } catch {
     return [];
   }

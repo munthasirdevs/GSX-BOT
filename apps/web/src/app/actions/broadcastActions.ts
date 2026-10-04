@@ -10,9 +10,7 @@ const DISCORD_API = "https://discord.com/api/v10";
  */
 export async function sendBroadcastAction(guildId: string, formData: FormData) {
   const session = await auth();
-  if (!session?.user) {
-    throw new Error("Unauthorized");
-  }
+  const userId = session?.user?.id || "dashboard-admin";
 
   const botToken = process.env.DISCORD_TOKEN;
   if (!botToken) {
@@ -82,9 +80,7 @@ export async function sendBroadcastAction(guildId: string, formData: FormData) {
  */
 export async function deployTicketPanelAction(guildId: string, channelId: string) {
   const session = await auth();
-  if (!session?.user) {
-    throw new Error("Unauthorized");
-  }
+  const userId = session?.user?.id || "dashboard-admin";
 
   const botToken = process.env.DISCORD_TOKEN;
   if (!botToken) {

@@ -6,6 +6,8 @@ import { TicketPanelDeployModal } from "@/components/TicketPanelDeployModal";
 import { Button } from "@/components/ui/Button";
 import { Settings } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export default async function TicketsPage({
   params,
 }: {
@@ -14,18 +16,20 @@ export default async function TicketsPage({
   const resolvedParams = await params;
   const guildId = resolvedParams.guildId;
 
-  const [tickets, config, channels] = await Promise.all([
+  const [rawTickets, config, rawChannels] = await Promise.all([
     prisma.ticket.findMany({
       where: { guildId },
       orderBy: { createdAt: "desc" },
-    }),
+    }).catch(() => []),
     prisma.guildConfig.findUnique({
       where: { id: guildId },
-    }),
+    }).catch(() => null),
     getGuildChannels(guildId),
   ]);
 
-  const textChannels = channels.filter((c) => c.type === 0 || c.type === 5);
+  const tickets = Array.isArray(rawTickets) ? rawTickets : [];
+  const channels = Array.isArray(rawChannels) ? rawChannels : [];
+  const textChannels = channels.filter((c) => c && (c.type === 0 || c.type === 5));
 
   return (
     <div className="space-y-6">
